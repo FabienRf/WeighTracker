@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_weightrack/pages/home.dart';
-import 'package:flutter_weightrack/pages/loading.dart';
-import 'package:flutter_weightrack/pages/profilCreation.dart';
+import 'package:flutter_weightrack/pages/profile_selection.dart';
 import 'package:flutter_weightrack/models/user_profile.dart';
 
 void main() {
@@ -27,7 +26,7 @@ class MyApp extends StatelessWidget {
           if (snapshot.hasData && snapshot.data != null) {
             return const HomePage();
           }
-          return const ProfilCreationPage();
+          return const ProfileSelectionPage();
         },
       ),
     );

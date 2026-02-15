@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_weightrack/models/user_profile.dart';
-import 'package:flutter_weightrack/pages/home.dart';
 
 class ProfilCreationPage extends StatefulWidget {
-  const ProfilCreationPage({super.key});
+  final UserProfile? existingProfile;
+
+  const ProfilCreationPage({super.key, this.existingProfile});
 
   @override
   State<ProfilCreationPage> createState() => _ProfilCreationPageState();
@@ -15,6 +16,20 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
   final _goalController = TextEditingController();
+
+  bool get _isEditing => widget.existingProfile != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final p = widget.existingProfile!;
+      _nameController.text = p.name;
+      _heightController.text = p.height.toString();
+      _weightController.text = p.weight.toString();
+      _goalController.text = p.goalWeight.toString();
+    }
+  }
 
   String _cleanNumber(String raw) {
     return raw.replaceAll(',', '.').replaceAll(RegExp(r'[^0-9.\-]'), '');
@@ -56,6 +71,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
     }
 
     final profile = UserProfile(
+      id: _isEditing ? widget.existingProfile!.id : UserProfile.generateId(),
       name: name,
       height: height,
       weight: weight,
@@ -64,18 +80,16 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
 
     await profile.save();
 
-    // Navigate to Home and replace this page
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
-    );
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Créer votre profil')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Modifier le profil' : 'Créer un profil'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -113,7 +127,9 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _saveProfile,
-                child: const Text('Enregistrer le profil'),
+                child: Text(
+                  _isEditing ? 'Modifier le profil' : 'Enregistrer le profil',
+                ),
               ),
             ],
           ),

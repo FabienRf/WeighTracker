@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_weightrack/models/user_profile.dart';
-import 'package:flutter_weightrack/pages/profilCreation.dart';
+import 'package:flutter_weightrack/pages/profile_selection.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   Future<void> _logout(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user_profile');
-    await prefs.remove('weight_entries');
-    await prefs.setInt('last_weight_entry_id', 0);
+    await UserProfile.clear();
 
     if (!context.mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const ProfilCreationPage()),
+      MaterialPageRoute(builder: (_) => const ProfileSelectionPage()),
       (route) => false,
     );
   }
@@ -23,7 +20,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<UserProfile?>(
-      future: UserProfile.load(),
+      future: UserProfile.loadActive(),
       builder: (context, snap) {
         final profile = snap.data;
         return Scaffold(
@@ -44,7 +41,7 @@ class ProfilePage extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () => _logout(context),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Déconnexion'),
+                  child: const Text('Changer de profil'),
                 ),
               ],
             ),

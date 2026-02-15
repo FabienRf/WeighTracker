@@ -9,7 +9,7 @@ import 'package:flutter_weightrack/services/id_generator.dart';
 import 'package:flutter_weightrack/models/weight_entry.dart';
 import 'package:flutter_weightrack/models/user_profile.dart';
 import 'package:flutter_weightrack/pages/profile_page.dart';
-import 'package:flutter_weightrack/pages/profilCreation.dart';
+import 'package:flutter_weightrack/pages/profile_selection.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -21,7 +21,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  static const _storageKey = 'weight_entries';
+  String get _storageKey => 'weight_entries_${_profile?.id ?? ''}';
 
   List<WeightEntry> _entries = [];
   late double currentWeight;
@@ -36,8 +36,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadProfile() async {
-    _profile = await UserProfile.load();
+    _profile = await UserProfile.loadActive();
     if (!mounted) return;
+    await _loadEntries();
     _updateCurrentWeight();
     setState(() {});
   }
@@ -154,7 +155,7 @@ class _HomePageState extends State<HomePage> {
                   return;
                 }
 
-                final id = await IdGenerator.getNextId();
+                final id = await IdGenerator.getNextId(_profile?.id);
                 final entry = WeightEntry(
                   id: id,
                   date: selectedDate,
@@ -229,8 +230,6 @@ class _HomePageState extends State<HomePage> {
       if (_entries.isEmpty) {
         final base = currentWeight > 0 ? currentWeight : 0.0;
         spots.add(FlSpot(0, base));
-        spots.add(FlSpot(1, base - 1));
-        spots.add(FlSpot(2, base + 1));
       } else {
         final sorted = List<WeightEntry>.from(_entries)
           ..sort((a, b) => a.date.compareTo(b.date));
@@ -353,10 +352,10 @@ class _HomePageState extends State<HomePage> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
-                          Navigator.push(
+                          Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ProfilCreationPage(),
+                              builder: (_) => const ProfileSelectionPage(),
                             ),
                           );
                         },
