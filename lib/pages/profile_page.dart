@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_weightrack/models/user_profile.dart';
 import 'package:flutter_weightrack/pages/profile_selection.dart';
 
@@ -23,6 +22,8 @@ class ProfilePage extends StatelessWidget {
       future: UserProfile.loadActive(),
       builder: (context, snap) {
         final profile = snap.data;
+        final textTheme = Theme.of(context).textTheme;
+        final colorScheme = Theme.of(context).colorScheme;
         return Scaffold(
           appBar: AppBar(title: const Text('Profil')),
           body: Padding(
@@ -30,18 +31,38 @@ class ProfilePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Nom: ${profile?.name ?? '-'}'),
+                Text('Nom', style: textTheme.labelLarge),
+                Text(profile?.name ?? '-', style: textTheme.titleMedium),
                 const SizedBox(height: 8),
-                Text('Taille: ${profile?.height ?? '-'}'),
+                Text('Taille', style: textTheme.labelLarge),
+                Text(
+                  '${profile?.height ?? '-'} cm',
+                  style: textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
-                Text('Poids: ${profile?.weight ?? '-'}'),
+                Text('Poids', style: textTheme.labelLarge),
+                Text(
+                  '${profile?.weight ?? '-'} kg',
+                  style: textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
-                Text('Objectif: ${profile?.goalWeight ?? '-'}'),
+                Text('Objectif', style: textTheme.labelLarge),
+                Text(
+                  '${profile?.goalWeight ?? '-'} kg',
+                  style: textTheme.titleMedium,
+                ),
                 const Spacer(),
-                ElevatedButton(
-                  onPressed: () => _logout(context),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Changer de profil'),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: () => _logout(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colorScheme.error,
+                      foregroundColor: colorScheme.onError,
+                    ),
+                    child: const Text('Changer de profil'),
+                  ),
                 ),
               ],
             ),

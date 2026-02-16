@@ -86,81 +86,97 @@ class _ProfileSelectionPageState extends State<ProfileSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Sélection du profil')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _profiles.isEmpty
-          ? const Center(
+          ? Center(
               child: Padding(
-                padding: EdgeInsets.all(32.0),
+                padding: const EdgeInsets.all(32.0),
                 child: Text(
                   'Aucun profil.\nCréez-en un pour commencer !',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
               itemCount: _profiles.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final profile = _profiles[index];
-                return ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color.fromARGB(255, 197, 40, 90),
-                    child: Icon(Icons.person, color: Colors.white),
-                  ),
-                  title: Text(
-                    profile.name,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                  subtitle: Text(
-                    '${profile.weight} kg — Objectif: ${profile.goalWeight} kg',
-                  ),
-                  onTap: () => _selectProfile(profile),
-                  trailing: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _editProfile(profile);
-                      } else if (value == 'delete') {
-                        _deleteProfile(profile);
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 20),
-                            SizedBox(width: 8),
-                            Text('Modifier'),
-                          ],
-                        ),
+                return Card(
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    leading: CircleAvatar(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      child: const Icon(Icons.person),
+                    ),
+                    title: Text(profile.name, style: textTheme.titleMedium),
+                    subtitle: Text(
+                      '${profile.weight.toStringAsFixed(1)} kg — Objectif: ${profile.goalWeight.toStringAsFixed(1)} kg',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, size: 20, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text(
-                              'Supprimer',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ],
+                    ),
+                    onTap: () => _selectProfile(profile),
+                    trailing: PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert),
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editProfile(profile);
+                        } else if (value == 'delete') {
+                          _deleteProfile(profile);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 8),
+                              Text('Modifier'),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete,
+                                size: 20,
+                                color: colorScheme.error,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Supprimer',
+                                style: TextStyle(color: colorScheme.error),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addProfile,
-        backgroundColor: const Color.fromARGB(255, 197, 40, 90),
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );

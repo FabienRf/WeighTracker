@@ -1,9 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_weightrack/services/id_generator.dart';
 import 'package:flutter_weightrack/models/weight_entry.dart';
@@ -25,6 +22,7 @@ class _HomePageState extends State<HomePage> {
 
   List<WeightEntry> _entries = [];
   late double currentWeight;
+  late Duration _dureeGraphique = const Duration(days: 7);
   UserProfile? _profile;
 
   @override
@@ -40,6 +38,20 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     await _loadEntries();
     _updateCurrentWeight();
+    // If there are no entries yet and we have a profile, add an initial weight entry
+    if (_entries.isEmpty) {
+      final id = await IdGenerator.getNextId(_profile?.id);
+      _entries.add(
+        WeightEntry(
+          id: id,
+          date: DateTime.now(),
+          weight: _profile!.weight,
+          note: 'Poids initial',
+        ),
+      );
+      await _saveEntries();
+      _updateCurrentWeight();
+    }
     setState(() {});
   }
 
@@ -90,9 +102,11 @@ class _HomePageState extends State<HomePage> {
             children: [
               TextField(
                 controller: weightController,
+                autofocus: true,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(labelText: 'Poids (kg)'),
               ),
+              const SizedBox(height: 4),
               TextField(
                 controller: noteController,
                 decoration: const InputDecoration(
@@ -166,13 +180,27 @@ class _HomePageState extends State<HomePage> {
                 debugPrint(
                   'Adding entry id=$id, beforeIds=${_entries.map((e) => e.id).toList()}',
                 );
-                setState(() {
-                  _entries.insert(0, entry);
-                  _updateCurrentWeight();
-                });
-                debugPrint(
-                  'Added entry id=$id, afterIds=${_entries.map((e) => e.id).toList()}',
-                );
+
+                // empeche l'ajout de plusieurs entrées pour la même date (en comparant uniquement la partie date, pas l'heure)
+                if (_entries.any(
+                  (e) => datesAreSameDay(e.date, selectedDate),
+                )) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Une entrée existe déjà pour cette date'),
+                    ),
+                  );
+                  return;
+                } else {
+                  setState(() {
+                    _entries.insert(0, entry);
+                    _updateCurrentWeight();
+                  });
+                  debugPrint(
+                    'Added entry id=$id, afterIds=${_entries.map((e) => e.id).toList()}',
+                  );
+                }
+
                 await _saveEntries();
                 Navigator.of(dialogContext).pop();
               },
@@ -205,22 +233,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   double _progressPercentage() {
-    if (_profile == null) return 0.0;
+    return (_profile!.goalWeight == _getLatestEntry())
+        ? 1.00
+        : ((currentWeight - _profile!.weight) /
+              (_profile!.goalWeight - _profile!.weight) *
+              100);
+  }
 
-    final start = _profile!.weight;
-
-    final latest = currentWeight;
-
-    final goal = _profile!.goalWeight;
-    final totalNeeded = (start - goal).abs();
-    if (totalNeeded < 1e-9) return 0.0;
-
-    final progressMade = (start - latest).abs();
-    // arrondir à 1 décimale et limiter entre 0 et 100
-    final percent = (progressMade / totalNeeded * 100)
-        .clamp(0.0, 100.0)
-        .toDouble();
-    return percent.roundToDouble();
+  bool datesAreSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
 
   Widget _buildWeightChart() {
@@ -233,10 +256,19 @@ class _HomePageState extends State<HomePage> {
       } else {
         final sorted = List<WeightEntry>.from(_entries)
           ..sort((a, b) => a.date.compareTo(b.date));
-        final firstDate = sorted.first.date;
+        // Normalize to date-only (midnight) so differences use full calendar days
+        final firstDate = DateTime(
+          sorted.first.date.year,
+          sorted.first.date.month,
+          sorted.first.date.day,
+        );
+        final startDay = DateTime.now().subtract(_dureeGraphique);
         for (var e in sorted) {
-          final x = e.date.difference(firstDate).inDays.toDouble();
-          spots.add(FlSpot(x, e.weight));
+          final dateOnly = DateTime(e.date.year, e.date.month, e.date.day);
+          final x = dateOnly.difference(startDay).inDays.toDouble();
+          if (e.date.isAfter(startDay)) {
+            spots.add(FlSpot(x, e.weight));
+          }
         }
       }
 
@@ -256,7 +288,11 @@ class _HomePageState extends State<HomePage> {
       } else {
         final sorted = List<WeightEntry>.from(_entries)
           ..sort((a, b) => a.date.compareTo(b.date));
-        startDate = sorted.first.date;
+        startDate = DateTime(
+          sorted.first.date.year,
+          sorted.first.date.month,
+          sorted.first.date.day,
+        );
       }
 
       String bottomTitle(double value) {
@@ -324,18 +360,72 @@ class _HomePageState extends State<HomePage> {
               isCurved: false,
               barWidth: 3,
               dotData: FlDotData(show: true),
-              color: const Color.fromARGB(255, 197, 40, 90),
+              color: Theme.of(context).colorScheme.primary,
             ),
           ],
         ),
       );
     } catch (e) {
-      return const Center(child: Text('Erreur affichage graphique'));
+      return const Center(
+        child: Text('Aucune donnée à afficher avec les paramètres actuels'),
+      );
     }
+  }
+
+  Widget _customRadio(
+    String text,
+    Duration value, {
+    bool isFirst = false,
+    bool isLast = false,
+    StateSetter? dialogSetState,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final selected = _dureeGraphique == value;
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 0.0),
+        child: OutlinedButton(
+          onPressed: () {
+            if (dialogSetState != null) {
+              dialogSetState(() {
+                _dureeGraphique = value;
+              });
+            }
+            setState(() {
+              _dureeGraphique = value;
+            });
+          },
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: Colors.grey),
+            backgroundColor: selected
+                ? colorScheme.primary
+                : Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(isFirst ? 8.0 : 0.0),
+                bottomLeft: Radius.circular(isFirst ? 8.0 : 0.0),
+                topRight: Radius.circular(isLast ? 8.0 : 0.0),
+                bottomRight: Radius.circular(isLast ? 8.0 : 0.0),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              color: selected ? colorScheme.onPrimary : colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       body: Column(
         children: [
@@ -361,15 +451,15 @@ class _HomePageState extends State<HomePage> {
                         },
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.account_circle,
                               size: 22,
-                              color: const Color.fromARGB(255, 197, 40, 90),
+                              color: colorScheme.primary,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               _profile?.name ?? 'WeighTrack',
-                              style: const TextStyle(fontSize: 22),
+                              style: textTheme.titleLarge,
                             ),
                           ],
                         ),
@@ -384,9 +474,9 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     RichText(
                       text: TextSpan(
-                        style: TextStyle(
-                          color: Colors.black,
-                        ), // Couleur par défaut
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface,
+                        ),
                         children: [
                           TextSpan(
                             text:
@@ -415,7 +505,7 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (_profile?.weight != null && _getLatestEntry() != null)
+                    if (_profile != null)
                       RichText(
                         text: TextSpan(
                           style: TextStyle(
@@ -426,15 +516,15 @@ class _HomePageState extends State<HomePage> {
                             TextSpan(text: 'Restant : '),
                             TextSpan(
                               text:
-                                  '${(_getLatestEntry()!.weight - _profile!.goalWeight).abs().toStringAsFixed(1)} kg',
+                                  '${((_getLatestEntry() != null ? _getLatestEntry()!.weight : _profile!.weight) - _profile!.goalWeight).abs().toStringAsFixed(1)} kg',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                       ),
-                    if (_profile?.weight != null && _getLatestEntry() != null)
+                    if (_profile != null)
                       Text(
-                        'Progression: ${_progressPercentage()}%',
+                        'Progression: ${_progressPercentage().toStringAsFixed(1)}%',
                         style: const TextStyle(fontSize: 16),
                       ),
                   ],
@@ -447,8 +537,8 @@ class _HomePageState extends State<HomePage> {
                     Expanded(
                       child: LinearProgressIndicator(
                         value: _progressPercentage() / 100.0,
-                        backgroundColor: Colors.grey[300],
-                        color: const Color.fromARGB(255, 197, 40, 90),
+                        backgroundColor: colorScheme.surfaceContainerHighest,
+                        color: colorScheme.primary,
                         minHeight: 8,
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -487,9 +577,9 @@ class _HomePageState extends State<HomePage> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (_profile != null && _getLatestEntry() != null)
+                            if (_profile != null)
                               Text(
-                                '🎯 ${_getLatestEntry()!.weight.toStringAsFixed(1)} kg',
+                                '🎯 ${(_getLatestEntry() != null ? _getLatestEntry()!.weight : _profile!.weight).toStringAsFixed(1)} kg',
                                 style: const TextStyle(fontSize: 16),
                               ),
                           ],
@@ -546,11 +636,15 @@ class _HomePageState extends State<HomePage> {
                                           Expanded(child: _buildWeightChart()),
                                           const SizedBox(height: 8),
                                           Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceEvenly,
                                             children: [
                                               // add button centered across available space
-                                              Expanded(
-                                                child: Center(
-                                                  child: SizedBox(
+                                              Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  SizedBox(
                                                     height: 48,
                                                     width: 48,
                                                     child: ElevatedButton(
@@ -562,73 +656,143 @@ class _HomePageState extends State<HomePage> {
                                                         padding:
                                                             EdgeInsets.zero,
                                                         backgroundColor:
-                                                            const Color.fromARGB(
-                                                              255,
-                                                              197,
-                                                              40,
-                                                              90,
-                                                            ),
+                                                            colorScheme.primary,
                                                         elevation: 0,
                                                         shadowColor:
                                                             Colors.transparent,
                                                       ),
-                                                      child: const Icon(
+                                                      child: Icon(
                                                         Icons.add,
                                                         size: 22,
-                                                        color: Colors.black,
+                                                        color: colorScheme
+                                                            .onPrimary,
                                                       ),
                                                     ),
                                                   ),
-                                                ),
+                                                ],
                                               ),
                                               // settings button fixed width, no shadow
-                                              Container(
-                                                width: 56,
-                                                alignment:
-                                                    Alignment.centerRight,
-                                                child: ElevatedButton(
-                                                  onPressed: () {
-                                                    showDialog(
-                                                      context: context,
-                                                      builder: (context) => AlertDialog(
-                                                        title: const Text(
-                                                          'Paramètres du graphique',
-                                                          style: TextStyle(
-                                                            fontSize: 12,
-                                                            color: Colors.black,
+                                              Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.end,
+                                                children: [
+                                                  ElevatedButton(
+                                                    onPressed: () {
+                                                      showDialog(
+                                                        context: context,
+                                                        builder: (context) => StatefulBuilder(
+                                                          builder:
+                                                              (
+                                                                dialogContext,
+                                                                dialogSetState,
+                                                              ) => AlertDialog(
+                                                                title: const Text(
+                                                                  'Durée du graphique :',
+                                                                  style: TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    color: Colors
+                                                                        .black,
+                                                                  ),
+                                                                ),
+                                                                content: Column(
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .start,
+                                                                  children: [
+                                                                    Row(
+                                                                      mainAxisSize:
+                                                                          MainAxisSize
+                                                                              .min,
+                                                                      children: [
+                                                                        _customRadio(
+                                                                          "7 J",
+                                                                          const Duration(
+                                                                            days:
+                                                                                7,
+                                                                          ),
+                                                                          isFirst:
+                                                                              true,
+                                                                          dialogSetState:
+                                                                              dialogSetState,
+                                                                        ),
+                                                                        _customRadio(
+                                                                          "30 J",
+                                                                          const Duration(
+                                                                            days:
+                                                                                30,
+                                                                          ),
+                                                                          dialogSetState:
+                                                                              dialogSetState,
+                                                                        ),
+                                                                        _customRadio(
+                                                                          "6 M",
+                                                                          const Duration(
+                                                                            days:
+                                                                                180,
+                                                                          ),
+                                                                          dialogSetState:
+                                                                              dialogSetState,
+                                                                        ),
+                                                                        _customRadio(
+                                                                          "1 A",
+                                                                          const Duration(
+                                                                            days:
+                                                                                365,
+                                                                          ),
+                                                                          dialogSetState:
+                                                                              dialogSetState,
+                                                                        ),
+                                                                        _customRadio(
+                                                                          "Tous",
+                                                                          const Duration(
+                                                                            days:
+                                                                                36500,
+                                                                          ),
+                                                                          isLast:
+                                                                              true,
+                                                                          dialogSetState:
+                                                                              dialogSetState,
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                                actions: [
+                                                                  TextButton(
+                                                                    onPressed: () =>
+                                                                        Navigator.of(
+                                                                          context,
+                                                                        ).pop(),
+                                                                    child: const Text(
+                                                                      'Fermer',
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                        ),
+                                                      );
+                                                    },
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          Colors.white,
+                                                      elevation: 0,
+                                                      shadowColor:
+                                                          Colors.transparent,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 12,
+                                                            vertical: 6,
                                                           ),
-                                                        ),
-                                                        content: const Text(
-                                                          'Fonctionnalité à venir...',
-                                                        ),
-                                                        actions: [
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.of(
-                                                                  context,
-                                                                ).pop(),
-                                                            child: const Text(
-                                                              'Fermer',
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    );
-                                                  },
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        Colors.white,
-                                                    elevation: 0,
-                                                    shadowColor:
-                                                        Colors.transparent,
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 6,
-                                                        ),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.tune,
+                                                    ),
                                                   ),
-                                                  child: const Icon(Icons.tune),
-                                                ),
+                                                ],
                                               ),
                                             ],
                                           ),
