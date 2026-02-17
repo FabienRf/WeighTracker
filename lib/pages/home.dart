@@ -259,6 +259,17 @@ class _HomePageState extends State<HomePage> {
                     ),
                   );
                   return;
+                } else if (_entries.any(
+                  (e) => selectedDate.isAfter(DateTime.now()),
+                )) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Vous ne pouvez pas ajouter une entrée pour une date future',
+                      ),
+                    ),
+                  );
+                  return;
                 } else {
                   setState(() {
                     _entries.insert(0, entry);
@@ -340,11 +351,16 @@ class _HomePageState extends State<HomePage> {
           sorted.first.date.month,
           sorted.first.date.day,
         );
-        final startDay = DateTime.now().subtract(_dureeGraphique);
+        final rangeStart = DateTime.now().subtract(_dureeGraphique);
+        final startDay = DateTime(
+          rangeStart.year,
+          rangeStart.month,
+          rangeStart.day,
+        );
         for (var e in sorted) {
           final dateOnly = DateTime(e.date.year, e.date.month, e.date.day);
           final x = dateOnly.difference(startDay).inDays.toDouble();
-          if (e.date.isAfter(startDay)) {
+          if (!dateOnly.isBefore(startDay)) {
             spots.add(FlSpot(x, e.weight));
           }
         }
@@ -381,22 +397,99 @@ class _HomePageState extends State<HomePage> {
         return DateFormat('dd/MM').format(date);
       }
 
-      // Pré-calcul des ticks et labels pour éviter les doublons d'affichage
+      // Pré-calcul des ticks et labels (simplifié)
       const tickCount = 5;
       final spanX = (maxX - minX);
       final intervalX = spanX == 0 ? 1.0 : spanX / (tickCount - 1);
       final toleranceX = (intervalX.abs() * 0.5) + 1e-9;
-      final bottomTicks = List<double>.generate(tickCount, (i) => minX + i * intervalX);
+      // Tolérance stricte pour décider que la valeur fournie par le moteur
+      // correspond exactement à notre tick canonique : évite l'affichage
+      // multiple du même label quand l'axe appelle getTitlesWidget
+      // pour des positions proches.
+      const matchEpsilonX = 1e-6;
+      const matchEpsilonY = 1e-6;
+      const desiredLeftCount = 5; // viser 4-5 labels sur l'axe Y
+
+      // --- X axis: choisir uniquement des dates qui correspondent à des points affichés
+      final spotXs = spots.map((s) => s.x).toSet().toList()..sort();
+      final bottomTickCount = spotXs.length <= 5 ? spotXs.length : 5;
+      final List<double> bottomTicks = [];
+      if (spotXs.isNotEmpty) {
+        if (spotXs.length <= bottomTickCount) {
+          bottomTicks.addAll(spotXs);
+        } else {
+          for (var i = 0; i < bottomTickCount; i++) {
+            final idx = ((spotXs.length - 1) * i / (bottomTickCount - 1))
+                .round();
+            bottomTicks.add(spotXs[idx]);
+          }
+        }
+      }
       final bottomLabels = bottomTicks.map((t) => bottomTitle(t)).toList();
 
+      // --- Y axis: garder desiredLeftCount ticks mais s'assurer d'étiquettes distinctes
+      const leftTickCount = desiredLeftCount;
       final spanY = (maxY - minY);
-      final intervalY = spanY == 0 ? 1.0 : spanY / (tickCount - 1);
+      final intervalY = spanY == 0 ? 1.0 : spanY / (leftTickCount - 1);
       final toleranceY = (intervalY.abs() * 0.5) + 1e-9;
-      final leftTicks = List<double>.generate(tickCount, (i) => minY + i * intervalY);
-      final leftLabels = leftTicks.map((t) => t.toStringAsFixed(1)).toList();
+      final leftTicks = List<double>.generate(
+        leftTickCount,
+        (i) => minY + i * intervalY,
+      );
 
-      final seenBottom = <String>{};
-      final seenLeft = <String>{};
+      // Formatte les labels Y en augmentant la précision si nécessaire pour obtenir
+      // des textes distincts (évite que toStringAsFixed produise des doublons)
+      int leftDecimals = 1;
+      List<String> leftLabels = leftTicks
+          .map((t) => t.toStringAsFixed(leftDecimals))
+          .toList();
+      while (leftLabels.toSet().length < leftTicks.length && leftDecimals < 3) {
+        leftDecimals++;
+        leftLabels = leftTicks
+            .map((t) => t.toStringAsFixed(leftDecimals))
+            .toList();
+      }
+
+      // Si aucune date/point n'existe, bottomTicks sera vide; on le remplit alors
+      // avec des positions régulières sur l'axe X pour ne pas casser l'affichage.
+      if (bottomTicks.isEmpty) {
+        final spanX = (maxX - minX);
+        final intervalX = spanX == 0 ? 1.0 : spanX / (5 - 1);
+        bottomTicks.addAll(
+          List<double>.generate(5, (i) => minX + i * intervalX),
+        );
+        // recalculer labels depuis ces ticks
+        // startDate utilisé par bottomTitle fonction
+        // bottomLabels remplacés ci-dessus
+      }
+
+      // Préparer listes uniques ordonnées (label->tick)
+      // Déduplication : garder la première occurrence pour chaque label
+
+      // final Map<String, double> bottomMap = {};
+      // for (var i = 0; i < bottomTicks.length; i++) {
+      //   bottomMap.putIfAbsent(bottomLabels[i], () => bottomTicks[i]);
+      // }
+      // final bottomUnique = bottomMap.entries.toList()
+      //   ..sort((a, b) => a.value.compareTo(b.value));
+
+      // final Map<String, double> leftMap = {};
+      // for (var i = 0; i < leftTicks.length; i++) {
+      //   leftMap.putIfAbsent(leftLabels[i], () => leftTicks[i]);
+      // }
+      // final leftUnique = leftMap.entries.toList()
+      //   ..sort((a, b) => a.value.compareTo(b.value));
+
+      // Construire une map label->tick en gardant la première occurrence.
+      final Map<String, double> bottomMap = {};
+      for (var i = 0; i < bottomLabels.length; i++) {
+        bottomMap.putIfAbsent(bottomLabels[i], () => bottomTicks[i]);
+      }
+
+      final Map<String, double> leftMap = {};
+      for (var i = 0; i < leftLabels.length; i++) {
+        leftMap.putIfAbsent(leftLabels[i], () => leftTicks[i]);
+      }
 
       return LineChart(
         LineChartData(
@@ -406,12 +499,10 @@ class _HomePageState extends State<HomePage> {
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
-                  for (var i = 0; i < bottomTicks.length; i++) {
-                    final tick = bottomTicks[i];
-                    if ((value - tick).abs() <= toleranceX) {
-                      final label = bottomLabels[i];
-                      if (seenBottom.contains(label)) return const SizedBox.shrink();
-                      seenBottom.add(label);
+                  for (final entry in bottomMap.entries) {
+                    final label = entry.key;
+                    final tick = entry.value;
+                    if ((value - tick).abs() <= matchEpsilonX) {
                       return Padding(
                         padding: const EdgeInsets.only(top: 6.0),
                         child: Text(
@@ -430,12 +521,10 @@ class _HomePageState extends State<HomePage> {
                 showTitles: true,
                 reservedSize: 40,
                 getTitlesWidget: (value, meta) {
-                  for (var i = 0; i < leftTicks.length; i++) {
-                    final tick = leftTicks[i];
-                    if ((value - tick).abs() <= toleranceY) {
-                      final label = leftLabels[i];
-                      if (seenLeft.contains(label)) return const SizedBox.shrink();
-                      seenLeft.add(label);
+                  for (final entry in leftMap.entries) {
+                    final label = entry.key;
+                    final tick = entry.value;
+                    if ((value - tick).abs() <= matchEpsilonY) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 6.0),
                         child: Text(
@@ -451,6 +540,13 @@ class _HomePageState extends State<HomePage> {
             ),
             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (touchedSpot) =>
+                  Theme.of(context).colorScheme.surface,
+            ),
           ),
           borderData: FlBorderData(show: false),
           minX: minX,
