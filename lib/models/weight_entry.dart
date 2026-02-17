@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+// Représente une entrée de pesée (id, date, poids, note).
+// Rôle: sérialisation vers/depuis JSON pour le stockage local.
 class WeightEntry {
   final int id;
   final DateTime date;
@@ -20,6 +22,7 @@ class WeightEntry {
     'note': note,
   };
 
+  // Construit une instance depuis une map JSON.
   factory WeightEntry.fromJson(Map<String, dynamic> json) => WeightEntry(
     id: json['id'] as int,
     date: DateTime.parse(json['date'] as String),

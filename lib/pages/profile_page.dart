@@ -6,6 +6,7 @@ class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   Future<void> _logout(BuildContext context) async {
+    // Déconnecte / réinitialise le profil actif et retourne à la sélection.
     await UserProfile.clear();
 
     if (!context.mounted) return;
@@ -31,6 +32,7 @@ class ProfilePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Affiche les informations du profil actif (nom, taille, poids, objectif).
                 Text('Nom', style: textTheme.labelLarge),
                 Text(profile?.name ?? '-', style: textTheme.titleMedium),
                 const SizedBox(height: 8),

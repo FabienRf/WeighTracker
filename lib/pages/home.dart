@@ -35,10 +35,14 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadProfile() async {
     _profile = await UserProfile.loadActive();
+    // Charge le profil actif depuis le stockage.
+    // Rôle: initialise `_profile`, recharge les entrées et ajoute
+    // une pesée initiale si aucune entrée n'existe.
     if (!mounted) return;
     await _loadEntries();
     _updateCurrentWeight();
     // If there are no entries yet and we have a profile, add an initial weight entry
+    // Si aucune pesée n'existe et qu'un profil est chargé, ajoute une pesée initiale
     if (_entries.isEmpty) {
       final id = await IdGenerator.getNextId(_profile?.id);
       _entries.add(
@@ -56,6 +60,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _updateCurrentWeight() {
+    // Met à jour `currentWeight` : prend la dernière entrée si disponible,
+    // sinon utilise le poids du profil (ou 0.0 si aucun profil).
     if (_entries.isNotEmpty) {
       final latest = _entries.reduce((a, b) => a.date.isAfter(b.date) ? a : b);
       currentWeight = latest.weight;
@@ -65,6 +71,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadEntries() async {
+    // Charge les entrées de poids depuis `SharedPreferences` (JSON).
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_storageKey);
     if (jsonString != null) {
@@ -82,12 +89,73 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _saveEntries() async {
+    // Sauvegarde les entrées de poids dans `SharedPreferences` au format JSON.
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(_entries.map((e) => e.toJson()).toList());
     await prefs.setString(_storageKey, encoded);
   }
 
+  Future<void> _updateProfileGoalDialog() async {
+    final goalController = TextEditingController(
+      text: _profile != null ? _profile!.goalWeight.toString() : '',
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Définir un nouvel objectif de poids'),
+        content: TextField(
+          controller: goalController,
+          autofocus: true,
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Objectif de poids (kg)',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final raw = goalController.text;
+              double goal;
+              try {
+                final cleaned = raw
+                    .replaceAll(',', '.')
+                    .replaceAll(RegExp(r'[^0-9.\-]'), '');
+                goal = double.parse(cleaned);
+              } catch (e) {
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Poids invalide — entrez un nombre pour l\'objectif',
+                    ),
+                  ),
+                );
+                return;
+              }
+
+              setState(() {
+                if (_profile != null) {
+                  _profile = _profile!.copyWith(goalWeight: goal);
+                  _profile!.save();
+                  _updateCurrentWeight();
+                }
+              });
+              Navigator.of(context).pop();
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    goalController.dispose();
+  }
+
   Future<void> _addEntryDialog() async {
+    // Affiche une boîte de dialogue pour ajouter une pesée (poids, date, note).
     final weightController = TextEditingController();
     final noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
@@ -211,11 +279,13 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     // dispose controllers after the dialog is closed
+    // Libère les contrôleurs une fois la boîte de dialogue fermée.
     weightController.dispose();
     noteController.dispose();
   }
 
   Future<void> _removeEntry(int index) async {
+    // Supprime une entrée par index et met à jour le poids courant et le stockage.
     setState(() {
       _entries.removeAt(index);
       _updateCurrentWeight();
@@ -224,15 +294,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   WeightEntry _getEntryById(int id) {
+    // Retourne l'entrée correspondant à `id`.
     return _entries.firstWhere((e) => e.id == id);
   }
 
   WeightEntry? _getLatestEntry() {
+    // Retourne la dernière entrée triée par date, ou `null` si aucune entrée.
     if (_entries.isEmpty) return null;
     return _entries.reduce((a, b) => a.date.isAfter(b.date) ? a : b);
   }
 
   double _progressPercentage() {
+    // Calcule la progression vers l'objectif en pourcentage (0..100).
+    // Utilise la dernière pesée si disponible, sinon `currentWeight`.
     return (_profile!.goalWeight == _getLatestEntry())
         ? 1.00
         : ((currentWeight - _profile!.weight) /
@@ -241,12 +315,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   bool datesAreSameDay(DateTime date1, DateTime date2) {
+    // Compare uniquement la partie date (ignore l'heure).
     return date1.year == date2.year &&
         date1.month == date2.month &&
         date1.day == date2.day;
   }
 
   Widget _buildWeightChart() {
+    // Construit le widget graphique (LineChart) affichant l'évolution du poids.
     try {
       final spots = <FlSpot>[];
 
@@ -257,6 +333,8 @@ class _HomePageState extends State<HomePage> {
         final sorted = List<WeightEntry>.from(_entries)
           ..sort((a, b) => a.date.compareTo(b.date));
         // Normalize to date-only (midnight) so differences use full calendar days
+        // Normalise les dates à la partie jour (minuit) pour calculer les
+        // différences en nombre de jours pleins.
         final firstDate = DateTime(
           sorted.first.date.year,
           sorted.first.date.month,
@@ -278,24 +356,26 @@ class _HomePageState extends State<HomePage> {
       double maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
 
       if ((maxX - minX).abs() < 1e-9) maxX = minX + 1;
-      final yPadding = ((maxY - minY) * 0.15).clamp(0.5, 10.0);
-      minY = minY - yPadding;
-      maxY = maxY + yPadding;
+      // Use a relative padding based on span, with a reasonable minimum.
+      // Calcule un padding vertical proportionnel à l'amplitude des données
+      // (avec une valeur minimale) pour éviter que les points touchent les bords.
+      final yPadding = ((maxY - minY) * 0.15).abs();
+      final effectivePadding = yPadding < 0.5 ? 0.5 : yPadding;
+      minY = minY - effectivePadding;
+      maxY = maxY + effectivePadding;
 
-      DateTime startDate;
-      if (_entries.isEmpty) {
-        startDate = DateTime.now().subtract(const Duration(days: 2));
-      } else {
-        final sorted = List<WeightEntry>.from(_entries)
-          ..sort((a, b) => a.date.compareTo(b.date));
-        startDate = DateTime(
-          sorted.first.date.year,
-          sorted.first.date.month,
-          sorted.first.date.day,
-        );
-      }
+      // Use the same startDay that was used to compute x values so X labels match points
+      // `startDate` correspond au début de la période affichée (utilisé
+      // pour convertir les positions X en dates lisibles).
+      final startDay = DateTime.now().subtract(_dureeGraphique);
+      DateTime startDate = DateTime(
+        startDay.year,
+        startDay.month,
+        startDay.day,
+      );
 
       String bottomTitle(double value) {
+        // Génère le label de l'axe X (format dd/MM) pour une position donnée.
         final dayOffset = value.round();
         final date = startDate.add(Duration(days: dayOffset));
         return DateFormat('dd/MM').format(date);
@@ -308,39 +388,47 @@ class _HomePageState extends State<HomePage> {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                interval: (maxX - minX) / 4 == 0 ? 1 : (maxX - minX) / 4,
-                getTitlesWidget: (value, meta) => Padding(
-                  padding: const EdgeInsets.only(top: 6.0),
-                  child: Text(
-                    bottomTitle(value),
-                    style: const TextStyle(fontSize: 10),
-                  ),
-                ),
+                getTitlesWidget: (value, meta) {
+                  const tickCount = 5;
+                  final span = (maxX - minX);
+                  final intervalX = span == 0 ? 1.0 : span / (tickCount - 1);
+                  final tolerance = (intervalX.abs() * 0.5) + 1e-9;
+                  for (var i = 0; i < tickCount; i++) {
+                    final tick = minX + i * intervalX;
+                    if ((value - tick).abs() <= tolerance) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: Text(
+                          bottomTitle(tick),
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                      );
+                    }
+                  }
+                  return const SizedBox.shrink();
+                },
               ),
             ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                interval: ((maxY - minY) / 4) == 0 ? 1 : ((maxY - minY) / 4),
                 reservedSize: 40,
                 getTitlesWidget: (value, meta) {
-                  final step = ((maxY - minY) / 4) == 0
-                      ? 1
-                      : ((maxY - minY) / 4);
-                  // compute the nearest index (0..4) for this value
-                  final idxDouble = (value - minY) / (step == 0 ? 1 : step);
-                  final idx = idxDouble.round();
-                  if (idx < 0 || idx > 4) return const SizedBox.shrink();
-                  final expected = minY + step * idx;
-                  // accept small rounding differences (quarter step)
-                  if ((value - expected).abs() <= (step * 0.25) + 1e-9) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6.0),
-                      child: Text(
-                        expected.toStringAsFixed(1),
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                    );
+                  const tickCount = 5;
+                  final spanY = (maxY - minY);
+                  final intervalY = spanY == 0 ? 1.0 : spanY / (tickCount - 1);
+                  final toleranceY = (intervalY.abs() * 0.5) + 1e-9;
+                  for (var i = 0; i < tickCount; i++) {
+                    final tick = minY + i * intervalY;
+                    if ((value - tick).abs() <= toleranceY) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6.0),
+                        child: Text(
+                          tick.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                      );
+                    }
                   }
                   return const SizedBox.shrink();
                 },
@@ -379,6 +467,7 @@ class _HomePageState extends State<HomePage> {
     bool isLast = false,
     StateSetter? dialogSetState,
   }) {
+    // Crée un bouton radio personnalisé pour sélectionner la durée du graphique.
     final colorScheme = Theme.of(context).colorScheme;
     final selected = _dureeGraphique == value;
     return Expanded(
@@ -435,7 +524,7 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
-                // Row avec nom de profil et icône
+                // Row avec nom de profil, icône et bouton pour définir un nouvel objectif de poid
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -449,21 +538,49 @@ class _HomePageState extends State<HomePage> {
                             ),
                           );
                         },
-                        child: Row(
+                        child: Column(
                           children: [
-                            Icon(
-                              Icons.account_circle,
-                              size: 22,
-                              color: colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _profile?.name ?? 'WeighTrack',
-                              style: textTheme.titleLarge,
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.account_circle,
+                                  size: 40,
+                                  color: colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _profile?.name ?? 'WeighTrack',
+                                  style: textTheme.titleLarge,
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
+                      // Bouton qui ouvre une pop-up pour re-définir l'objectif du profil actuel (perte ou gain de poids)
+                    ),
+                    Column(
+                      children: [
+                        Container(
+                          height: 40,
+                          width: 40,
+                          child: ElevatedButton(
+                            onPressed: () => _updateProfileGoalDialog(),
+                            style: ElevatedButton.styleFrom(
+                              shape: const CircleBorder(),
+                              padding: EdgeInsets.zero,
+                              backgroundColor: colorScheme.primary,
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                            ),
+                            child: Icon(
+                              Icons.edit_outlined,
+                              size: 30,
+                              color: colorScheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -564,7 +681,7 @@ class _HomePageState extends State<HomePage> {
                                 color: Colors.green,
                               ),
                             Text(
-                              '${_profile!.goalWeight} kg',
+                              '${_profile!.weight} kg',
                               style: const TextStyle(fontSize: 16),
                             ),
                           ],
@@ -579,7 +696,7 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             if (_profile != null)
                               Text(
-                                '🎯 ${(_getLatestEntry() != null ? _getLatestEntry()!.weight : _profile!.weight).toStringAsFixed(1)} kg',
+                                '🎯 ${_profile!.goalWeight.toStringAsFixed(1)} kg',
                                 style: const TextStyle(fontSize: 16),
                               ),
                           ],
@@ -589,6 +706,28 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
                 const SizedBox(height: 52),
+
+                // Row qui apparait si l'objectif est atteint ou dépassé, avec un message de félicitations et une icône, ainsi qu'un bouton qui appele une pop-up pour definir un nouvel objectif
+                if (_progressPercentage() >= 100)
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.emoji_events_outlined,
+                        size: 22,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Objectif atteint !',
+                        style: textTheme.titleMedium?.copyWith(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 12),
 
                 // Row graphique linéaire montrant l'évolution du poids au fil du temps, avec des points pour chaque pesée enregistrée
                 Row(
@@ -813,6 +952,8 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
+          const SizedBox(height: 22),
+
           Expanded(
             child: Row(
               children: [
@@ -846,7 +987,7 @@ class _HomePageState extends State<HomePage> {
                               },
                               child: ListTile(
                                 title: Text(
-                                  '${e.weight.toStringAsFixed(1)} kg, le ${DateFormat('dd/MM/yyyy').format(e.date)}',
+                                  '${e.weight.toStringAsFixed(3)} kg, le ${DateFormat('dd/MM/yyyy').format(e.date)}',
                                 ),
                               ),
                             );

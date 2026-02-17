@@ -11,6 +11,8 @@ class ProfilCreationPage extends StatefulWidget {
 }
 
 class _ProfilCreationPageState extends State<ProfilCreationPage> {
+  // Page et formulaire pour créer ou modifier un profil utilisateur.
+  // Rôle: collecte nom, taille, poids et objectif, valide et sauve.
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _heightController = TextEditingController();
@@ -22,6 +24,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
   @override
   void initState() {
     super.initState();
+    // Si édition, pré-remplit les champs avec les valeurs existantes.
     if (_isEditing) {
       final p = widget.existingProfile!;
       _nameController.text = p.name;
@@ -32,6 +35,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
   }
 
   String _cleanNumber(String raw) {
+    // Nettoie une chaîne numérique (',' -> '.', enlève caractères non numériques).
     return raw.replaceAll(',', '.').replaceAll(RegExp(r'[^0-9.\-]'), '');
   }
 
@@ -56,6 +60,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
   }
 
   Future<void> _saveProfile() async {
+    // Valide et enregistre le profil (création ou mise à jour).
     final name = _nameController.text.trim();
     final height = _parseInt(_heightController.text);
     final weight = _parseDouble(_weightController.text);
@@ -98,6 +103,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
           key: _formKey,
           child: ListView(
             children: [
+              // En-tête et description courte de la page.
               Text(
                 _isEditing ? 'Informations du profil' : 'Nouveau profil',
                 style: textTheme.titleLarge,

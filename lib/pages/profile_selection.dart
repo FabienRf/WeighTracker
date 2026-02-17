@@ -11,6 +11,7 @@ class ProfileSelectionPage extends StatefulWidget {
 }
 
 class _ProfileSelectionPageState extends State<ProfileSelectionPage> {
+  // Liste des profils disponibles et indicateur de chargement.
   List<UserProfile> _profiles = [];
   bool _loading = true;
 
@@ -21,6 +22,7 @@ class _ProfileSelectionPageState extends State<ProfileSelectionPage> {
   }
 
   Future<void> _loadProfiles() async {
+    // Charge tous les profils sauvegardés puis met à jour l'état.
     final profiles = await UserProfile.loadAll();
     if (!mounted) return;
     setState(() {
@@ -30,6 +32,7 @@ class _ProfileSelectionPageState extends State<ProfileSelectionPage> {
   }
 
   Future<void> _selectProfile(UserProfile profile) async {
+    // Définit le profil choisi comme actif et ouvre la page principale.
     await profile.setActive();
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -61,12 +64,14 @@ class _ProfileSelectionPageState extends State<ProfileSelectionPage> {
       ),
     );
     if (confirm == true) {
+      // Supprime le profil sélectionné puis recharge la liste.
       await profile.delete();
       _loadProfiles();
     }
   }
 
   Future<void> _editProfile(UserProfile profile) async {
+    // Ouvre la page de modification, puis recharge la liste au retour.
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -77,6 +82,7 @@ class _ProfileSelectionPageState extends State<ProfileSelectionPage> {
   }
 
   Future<void> _addProfile() async {
+    // Ouvre la page de création de profil, puis recharge la liste.
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ProfilCreationPage()),
@@ -112,6 +118,7 @@ class _ProfileSelectionPageState extends State<ProfileSelectionPage> {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final profile = _profiles[index];
+                // Carte résumant un profil avec actions (sélection/éditer/supprimer).
                 return Card(
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(

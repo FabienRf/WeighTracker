@@ -3,6 +3,7 @@ import 'package:flutter_weightrack/pages/home.dart';
 import 'package:flutter_weightrack/pages/profile_selection.dart';
 import 'package:flutter_weightrack/models/user_profile.dart';
 
+// Couleur principale de l'application (ton de marque)
 const Color kBrandColor = Color.fromARGB(255, 197, 40, 90);
 
 void main() {
@@ -31,6 +32,9 @@ class MyApp extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
         ),
       ),
+      // Détermine l'écran initial selon la présence d'un profil actif.
+      // Rôle: charge le profil (migration si besoin) et affiche `HomePage`
+      // si un profil existe, sinon affiche la sélection de profil.
       home: FutureBuilder<UserProfile?>(
         future: UserProfile.load(),
         builder: (context, snapshot) {

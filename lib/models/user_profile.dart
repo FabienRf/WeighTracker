@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Représente un profil utilisateur avec ses données personnelles et objectifs.
+// Rôle: sérialisation, sauvegarde multi-profil et gestion du profil actif.
 class UserProfile {
   final String id;
   final String name;
@@ -51,16 +53,16 @@ class UserProfile {
     goalWeight: (json['goalWeight'] as num).toDouble(),
   );
 
-  // ── Multi-profile storage ──
+  // ── Stockage multi-profil ──
 
   static const _profilesKey = 'user_profiles';
   static const _activeProfileKey = 'active_profile_id';
 
-  /// Generate a unique ID for a new profile.
+  /// Génère un identifiant unique pour un nouveau profil.
   static String generateId() =>
       DateTime.now().millisecondsSinceEpoch.toString();
 
-  /// Load all saved profiles.
+  /// Charge tous les profils sauvegardés.
   static Future<List<UserProfile>> loadAll() async {
     final prefs = await SharedPreferences.getInstance();
     final s = prefs.getString(_profilesKey);
@@ -75,14 +77,14 @@ class UserProfile {
     }
   }
 
-  /// Save a list of profiles.
+  /// Sauvegarde une liste de profils.
   static Future<void> saveAll(List<UserProfile> profiles) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(profiles.map((p) => p.toJson()).toList());
     await prefs.setString(_profilesKey, encoded);
   }
 
-  /// Add or update this profile in the stored list.
+  /// Ajoute ou met à jour ce profil dans la liste stockée.
   Future<void> save() async {
     final profiles = await loadAll();
     final idx = profiles.indexWhere((p) => p.id == id);
@@ -94,29 +96,29 @@ class UserProfile {
     await saveAll(profiles);
   }
 
-  /// Delete this profile and its associated weight entries.
+  /// Supprime ce profil et ses données associées (pesées, compteur d'ID).
   Future<void> delete() async {
     final profiles = await loadAll();
     profiles.removeWhere((p) => p.id == id);
     await saveAll(profiles);
-    // Clean up weight data for this profile
+    // Nettoie les données de poids pour ce profil
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('weight_entries_$id');
     await prefs.remove('last_weight_entry_id_$id');
-    // If this was the active profile, clear active
+    // Si c'était le profil actif, on réinitialise l'actif
     final activeId = prefs.getString(_activeProfileKey);
     if (activeId == id) {
       await prefs.remove(_activeProfileKey);
     }
   }
 
-  /// Set this profile as the active (selected) profile.
+  /// Définit ce profil comme profil actif.
   Future<void> setActive() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_activeProfileKey, id);
   }
 
-  /// Load the currently active profile, or null.
+  /// Charge le profil actuellement actif, ou `null` s'il n'y en a pas.
   static Future<UserProfile?> loadActive() async {
     final prefs = await SharedPreferences.getInstance();
     final activeId = prefs.getString(_activeProfileKey);
