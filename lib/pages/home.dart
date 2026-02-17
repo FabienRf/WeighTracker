@@ -381,6 +381,23 @@ class _HomePageState extends State<HomePage> {
         return DateFormat('dd/MM').format(date);
       }
 
+      // Pré-calcul des ticks et labels pour éviter les doublons d'affichage
+      const tickCount = 5;
+      final spanX = (maxX - minX);
+      final intervalX = spanX == 0 ? 1.0 : spanX / (tickCount - 1);
+      final toleranceX = (intervalX.abs() * 0.5) + 1e-9;
+      final bottomTicks = List<double>.generate(tickCount, (i) => minX + i * intervalX);
+      final bottomLabels = bottomTicks.map((t) => bottomTitle(t)).toList();
+
+      final spanY = (maxY - minY);
+      final intervalY = spanY == 0 ? 1.0 : spanY / (tickCount - 1);
+      final toleranceY = (intervalY.abs() * 0.5) + 1e-9;
+      final leftTicks = List<double>.generate(tickCount, (i) => minY + i * intervalY);
+      final leftLabels = leftTicks.map((t) => t.toStringAsFixed(1)).toList();
+
+      final seenBottom = <String>{};
+      final seenLeft = <String>{};
+
       return LineChart(
         LineChartData(
           gridData: FlGridData(show: false),
@@ -389,17 +406,16 @@ class _HomePageState extends State<HomePage> {
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
-                  const tickCount = 5;
-                  final span = (maxX - minX);
-                  final intervalX = span == 0 ? 1.0 : span / (tickCount - 1);
-                  final tolerance = (intervalX.abs() * 0.5) + 1e-9;
-                  for (var i = 0; i < tickCount; i++) {
-                    final tick = minX + i * intervalX;
-                    if ((value - tick).abs() <= tolerance) {
+                  for (var i = 0; i < bottomTicks.length; i++) {
+                    final tick = bottomTicks[i];
+                    if ((value - tick).abs() <= toleranceX) {
+                      final label = bottomLabels[i];
+                      if (seenBottom.contains(label)) return const SizedBox.shrink();
+                      seenBottom.add(label);
                       return Padding(
                         padding: const EdgeInsets.only(top: 6.0),
                         child: Text(
-                          bottomTitle(tick),
+                          label,
                           style: const TextStyle(fontSize: 10),
                         ),
                       );
@@ -414,17 +430,16 @@ class _HomePageState extends State<HomePage> {
                 showTitles: true,
                 reservedSize: 40,
                 getTitlesWidget: (value, meta) {
-                  const tickCount = 5;
-                  final spanY = (maxY - minY);
-                  final intervalY = spanY == 0 ? 1.0 : spanY / (tickCount - 1);
-                  final toleranceY = (intervalY.abs() * 0.5) + 1e-9;
-                  for (var i = 0; i < tickCount; i++) {
-                    final tick = minY + i * intervalY;
+                  for (var i = 0; i < leftTicks.length; i++) {
+                    final tick = leftTicks[i];
                     if ((value - tick).abs() <= toleranceY) {
+                      final label = leftLabels[i];
+                      if (seenLeft.contains(label)) return const SizedBox.shrink();
+                      seenLeft.add(label);
                       return Padding(
                         padding: const EdgeInsets.only(right: 6.0),
                         child: Text(
-                          tick.toStringAsFixed(1),
+                          label,
                           style: const TextStyle(fontSize: 10),
                         ),
                       );
