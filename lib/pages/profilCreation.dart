@@ -102,71 +102,82 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
         child: Form(
           key: _formKey,
           child: ListView(
-            children: [
-              // En-tête et description courte de la page.
-              Text(
-                _isEditing ? 'Informations du profil' : 'Nouveau profil',
-                style: textTheme.titleLarge,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Vous pourrez ajouter des pesées ensuite.',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameController,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Nom',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _heightController,
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Taille en cm (ex: 175)',
-                  prefixIcon: Icon(Icons.height),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _weightController,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Poids actuel (kg)',
-                  prefixIcon: Icon(Icons.monitor_weight_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _goalController,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'Objectif de poids (kg)',
-                  prefixIcon: Icon(Icons.flag_outlined),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 48,
-                child: FilledButton(
-                  onPressed: _saveProfile,
-                  child: Text(
-                    _isEditing
-                        ? 'Enregistrer les modifications'
-                        : 'Créer le profil',
+            children:
+                [
+                  // En-tête et description courte de la page.
+                  Text(
+                    _isEditing ? 'Informations du profil' : 'Nouveau profil',
+                    style: textTheme.titleLarge,
                   ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'Vous pourrez ajouter des pesées ensuite.',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _nameController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _heightController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Taille en cm (ex: 175)',
+                      prefixIcon: Icon(Icons.height),
+                    ),
+                  ),
+                ] +
+                (_isEditing
+                    ? []
+                    : [
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _weightController,
+                          keyboardType: TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Poids actuel (kg)',
+                            prefixIcon: Icon(Icons.monitor_weight_outlined),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _goalController,
+                          keyboardType: TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            labelText: 'Objectif de poids (kg)',
+                            prefixIcon: Icon(Icons.flag_outlined),
+                          ),
+                        ),
+                      ]) +
+                [
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: _saveProfile,
+                      child: Text(
+                        _isEditing
+                            ? 'Enregistrer les modifications'
+                            : 'Créer le profil',
+                      ),
+                    ),
+                  ),
+                ],
           ),
         ),
       ),
