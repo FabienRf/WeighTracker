@@ -318,11 +318,14 @@ class _HomePageState extends State<HomePage> {
   double _progressPercentage() {
     // Calcule la progression vers l'objectif en pourcentage (0..100).
     // Utilise la dernière pesée si disponible, sinon `currentWeight`.
-    return (_profile!.goalWeight == _getLatestEntry())
-        ? 1.00
-        : ((currentWeight - _profile!.weight) /
-              (_profile!.goalWeight - _profile!.weight) *
-              100);
+    if (_profile == null) return 0.0;
+    final goal = _profile!.goalWeight;
+    final start = _profile!.weight;
+    final latest = _getLatestEntry()?.weight ?? currentWeight;
+    // Avoid division by zero if start == goal
+    if ((goal - start).abs() < 1e-9) return 0.0;
+    final percent = ((latest - start) / (goal - start)) * 100.0;
+    return percent.clamp(0.0, 100.0);
   }
 
   bool datesAreSameDay(DateTime date1, DateTime date2) {
@@ -343,14 +346,8 @@ class _HomePageState extends State<HomePage> {
       } else {
         final sorted = List<WeightEntry>.from(_entries)
           ..sort((a, b) => a.date.compareTo(b.date));
-        // Normalize to date-only (midnight) so differences use full calendar days
         // Normalise les dates à la partie jour (minuit) pour calculer les
         // différences en nombre de jours pleins.
-        final firstDate = DateTime(
-          sorted.first.date.year,
-          sorted.first.date.month,
-          sorted.first.date.day,
-        );
         final rangeStart = DateTime.now().subtract(_dureeGraphique);
         final startDay = DateTime(
           rangeStart.year,
@@ -372,170 +369,53 @@ class _HomePageState extends State<HomePage> {
       double maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
 
       if ((maxX - minX).abs() < 1e-9) maxX = minX + 1;
-      // Use a relative padding based on span, with a reasonable minimum.
+      if ((maxY - minY).abs() < 1e-9) maxY = minY + 1;
       // Calcule un padding vertical proportionnel à l'amplitude des données
       // (avec une valeur minimale) pour éviter que les points touchent les bords.
       final yPadding = ((maxY - minY) * 0.15).abs();
-      final effectivePadding = yPadding < 0.5 ? 0.5 : yPadding;
-      minY = minY - effectivePadding;
-      maxY = maxY + effectivePadding;
+      double intervalY = (maxY - minY) / 5;
 
-      // Use the same startDay that was used to compute x values so X labels match points
-      // `startDate` correspond au début de la période affichée (utilisé
-      // pour convertir les positions X en dates lisibles).
-      final startDay = DateTime.now().subtract(_dureeGraphique);
-      DateTime startDate = DateTime(
-        startDay.year,
-        startDay.month,
-        startDay.day,
-      );
-
-      String bottomTitle(double value) {
-        // Génère le label de l'axe X (format dd/MM) pour une position donnée.
-        final dayOffset = value.round();
-        final date = startDate.add(Duration(days: dayOffset));
-        return DateFormat('dd/MM').format(date);
-      }
-
-      // Pré-calcul des ticks et labels (simplifié)
-      const tickCount = 5;
-      final spanX = (maxX - minX);
-      final intervalX = spanX == 0 ? 1.0 : spanX / (tickCount - 1);
-      final toleranceX = (intervalX.abs() * 0.5) + 1e-9;
-      // Tolérance stricte pour décider que la valeur fournie par le moteur
-      // correspond exactement à notre tick canonique : évite l'affichage
-      // multiple du même label quand l'axe appelle getTitlesWidget
-      // pour des positions proches.
-      const matchEpsilonX = 1e-6;
-      const matchEpsilonY = 1e-6;
-      const desiredLeftCount = 5; // viser 4-5 labels sur l'axe Y
-
-      // --- X axis: choisir uniquement des dates qui correspondent à des points affichés
-      final spotXs = spots.map((s) => s.x).toSet().toList()..sort();
-      final bottomTickCount = spotXs.length <= 5 ? spotXs.length : 5;
-      final List<double> bottomTicks = [];
-      if (spotXs.isNotEmpty) {
-        if (spotXs.length <= bottomTickCount) {
-          bottomTicks.addAll(spotXs);
-        } else {
-          for (var i = 0; i < bottomTickCount; i++) {
-            final idx = ((spotXs.length - 1) * i / (bottomTickCount - 1))
-                .round();
-            bottomTicks.add(spotXs[idx]);
-          }
-        }
-      }
-      final bottomLabels = bottomTicks.map((t) => bottomTitle(t)).toList();
-
-      // --- Y axis: garder desiredLeftCount ticks mais s'assurer d'étiquettes distinctes
-      const leftTickCount = desiredLeftCount;
-      final spanY = (maxY - minY);
-      final intervalY = spanY == 0 ? 1.0 : spanY / (leftTickCount - 1);
-      final toleranceY = (intervalY.abs() * 0.5) + 1e-9;
-      final leftTicks = List<double>.generate(
-        leftTickCount,
-        (i) => minY + i * intervalY,
-      );
-
-      // Formatte les labels Y en augmentant la précision si nécessaire pour obtenir
-      // des textes distincts (évite que toStringAsFixed produise des doublons)
-      int leftDecimals = 1;
-      List<String> leftLabels = leftTicks
-          .map((t) => t.toStringAsFixed(leftDecimals))
-          .toList();
-      while (leftLabels.toSet().length < leftTicks.length && leftDecimals < 3) {
-        leftDecimals++;
-        leftLabels = leftTicks
-            .map((t) => t.toStringAsFixed(leftDecimals))
-            .toList();
-      }
-
-      // Si aucune date/point n'existe, bottomTicks sera vide; on le remplit alors
-      // avec des positions régulières sur l'axe X pour ne pas casser l'affichage.
-      if (bottomTicks.isEmpty) {
-        final spanX = (maxX - minX);
-        final intervalX = spanX == 0 ? 1.0 : spanX / (5 - 1);
-        bottomTicks.addAll(
-          List<double>.generate(5, (i) => minX + i * intervalX),
-        );
-        // recalculer labels depuis ces ticks
-        // startDate utilisé par bottomTitle fonction
-        // bottomLabels remplacés ci-dessus
-      }
-
-      // Préparer listes uniques ordonnées (label->tick)
-      // Déduplication : garder la première occurrence pour chaque label
-
-      // final Map<String, double> bottomMap = {};
-      // for (var i = 0; i < bottomTicks.length; i++) {
-      //   bottomMap.putIfAbsent(bottomLabels[i], () => bottomTicks[i]);
-      // }
-      // final bottomUnique = bottomMap.entries.toList()
-      //   ..sort((a, b) => a.value.compareTo(b.value));
-
-      // final Map<String, double> leftMap = {};
-      // for (var i = 0; i < leftTicks.length; i++) {
-      //   leftMap.putIfAbsent(leftLabels[i], () => leftTicks[i]);
-      // }
-      // final leftUnique = leftMap.entries.toList()
-      //   ..sort((a, b) => a.value.compareTo(b.value));
-
-      // Construire une map label->tick en gardant la première occurrence.
-      final Map<String, double> bottomMap = {};
-      for (var i = 0; i < bottomLabels.length; i++) {
-        bottomMap.putIfAbsent(bottomLabels[i], () => bottomTicks[i]);
-      }
-
-      final Map<String, double> leftMap = {};
-      for (var i = 0; i < leftLabels.length; i++) {
-        leftMap.putIfAbsent(leftLabels[i], () => leftTicks[i]);
-      }
+      minY = minY - yPadding;
+      maxY = maxY + yPadding;
 
       return LineChart(
         LineChartData(
+          // domainAxis: charts.NumericAxisSpec(
+          //   showAxisLine: false,
+          //   renderSpec: charts.NoneRenderSpec(),
+          // ),
+          extraLinesData: ExtraLinesData(
+            horizontalLines: [
+              HorizontalLine(
+                y: _profile?.goalWeight ?? 0.0,
+                color: Colors.green,
+                strokeWidth: 2,
+                dashArray: [5, 5],
+                label: HorizontalLineLabel(
+                  show: true,
+                  alignment: Alignment.topRight,
+                  padding: const EdgeInsets.only(right: 4, bottom: 4),
+                  style: TextStyle(
+                    color: Colors.green[700],
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  labelResolver: (_) => 'Objectif',
+                ),
+              ),
+            ],
+          ),
+
           gridData: FlGridData(show: false),
           titlesData: FlTitlesData(
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  for (final entry in bottomMap.entries) {
-                    final label = entry.key;
-                    final tick = entry.value;
-                    if ((value - tick).abs() <= matchEpsilonX) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6.0),
-                        child: Text(
-                          label,
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      );
-                    }
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
+            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 40,
-                getTitlesWidget: (value, meta) {
-                  for (final entry in leftMap.entries) {
-                    final label = entry.key;
-                    final tick = entry.value;
-                    if ((value - tick).abs() <= matchEpsilonY) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6.0),
-                        child: Text(
-                          label,
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      );
-                    }
-                  }
-                  return const SizedBox.shrink();
-                },
+                reservedSize: 44,
+                interval: intervalY,
+                minIncluded: false,
+                maxIncluded: false,
               ),
             ),
             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -544,6 +424,8 @@ class _HomePageState extends State<HomePage> {
           lineTouchData: LineTouchData(
             enabled: true,
             touchTooltipData: LineTouchTooltipData(
+              showOnTopOfTheChartBoxArea: false,
+
               getTooltipColor: (touchedSpot) =>
                   Theme.of(context).colorScheme.surface,
             ),
@@ -629,72 +511,76 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: Column(
         children: [
+          // Row avec nom de profil, icône et bouton pour définir un nouvel objectif de poid
+          Container(
+            color: colorScheme.primaryContainer.withOpacity(0.6),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileSelectionPage(),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.account_circle,
+                                size: 40,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _profile?.name ?? 'WeighTrack',
+                                style: textTheme.titleLarge,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Bouton qui ouvre une pop-up pour re-définir l'objectif du profil actuel (perte ou gain de poids)
+                  ),
+
+                  Container(
+                    height: 40,
+                    width: 40,
+                    child: ElevatedButton(
+                      onPressed: () => _updateProfileGoalDialog(),
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: EdgeInsets.zero,
+                        backgroundColor: colorScheme.primary,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                      ),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        size: 30,
+                        color: colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
-                // Row avec nom de profil, icône et bouton pour définir un nouvel objectif de poid
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ProfileSelectionPage(),
-                            ),
-                          );
-                        },
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.account_circle,
-                                  size: 40,
-                                  color: colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _profile?.name ?? 'WeighTrack',
-                                  style: textTheme.titleLarge,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Bouton qui ouvre une pop-up pour re-définir l'objectif du profil actuel (perte ou gain de poids)
-                    ),
-                    Column(
-                      children: [
-                        Container(
-                          height: 40,
-                          width: 40,
-                          child: ElevatedButton(
-                            onPressed: () => _updateProfileGoalDialog(),
-                            style: ElevatedButton.styleFrom(
-                              shape: const CircleBorder(),
-                              padding: EdgeInsets.zero,
-                              backgroundColor: colorScheme.primary,
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                            ),
-                            child: Icon(
-                              Icons.edit_outlined,
-                              size: 30,
-                              color: colorScheme.onPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 22),
 
                 // Row affichant le dernier poids en grande taille
@@ -816,7 +702,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 52),
+                const SizedBox(height: 32),
 
                 // Row qui apparait si l'objectif est atteint ou dépassé, avec un message de félicitations et une icône, ainsi qu'un bouton qui appele une pop-up pour definir un nouvel objectif
                 if (_progressPercentage() >= 100)
@@ -835,6 +721,31 @@ class _HomePageState extends State<HomePage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      Expanded(child: Container()),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorScheme.primary,
+                        ),
+                        onPressed: () => _updateProfileGoalDialog(),
+                        child: Text(
+                          'Nouveaux',
+                          style: textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      // GestureDetector(
+                      // onTap: () => _updateProfileGoalDialog(),
+                      // child: Text(
+                      //   'Nouveaux',
+                      //   style: textTheme.titleMedium?.copyWith(
+                      //     color: Colors.white,
+                      //     backgroundColor: colorScheme.primary,
+                      //     fontWeight: FontWeight.bold,
+                      //   ),
+                      // ),
+                      // ),
                     ],
                   ),
 
