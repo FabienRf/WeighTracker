@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_weightrack/models/user_profile.dart';
+import 'package:WeighTracker/models/user_profile.dart';
 
 class ProfilCreationPage extends StatefulWidget {
   final UserProfile? existingProfile;

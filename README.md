@@ -1,3 +1,3 @@
-# flutter_weightrack
+# WeighTracker
 
 A new Flutter project.

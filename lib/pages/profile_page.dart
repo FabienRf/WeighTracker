@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_weightrack/models/user_profile.dart';
-import 'package:flutter_weightrack/pages/profile_selection.dart';
+import 'package:WeighTracker/models/user_profile.dart';
+import 'package:WeighTracker/pages/profile_selection.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});

@@ -1,6 +1,6 @@
-name: flutter_weightrack
-description: "A new Flutter project."
-publish_to: 'none'
+name: WeighTracker
+description: "Une application pour suivre son poid et être en bonne santé."
+publish_to: "none"
 version: 0.1.0
 
 environment:
@@ -17,6 +17,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+
+flutter_icons:
+  android: true
+  ios: true
+  web: true
+  image_path: "web/assets/icons/ppApplicationpng.png"

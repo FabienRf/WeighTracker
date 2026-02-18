@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_weightrack/models/user_profile.dart';
-import 'package:flutter_weightrack/pages/profilCreation.dart';
-import 'package:flutter_weightrack/pages/home.dart';
+import 'package:WeighTracker/models/user_profile.dart';
+import 'package:WeighTracker/pages/profilCreation.dart';
+import 'package:WeighTracker/pages/home.dart';
 
 class ProfileSelectionPage extends StatefulWidget {
   const ProfileSelectionPage({super.key});

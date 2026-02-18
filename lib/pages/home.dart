@@ -2,11 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_weightrack/services/id_generator.dart';
-import 'package:flutter_weightrack/models/weight_entry.dart';
-import 'package:flutter_weightrack/models/user_profile.dart';
-import 'package:flutter_weightrack/pages/profile_page.dart';
-import 'package:flutter_weightrack/pages/profile_selection.dart';
+import 'package:WeighTracker/services/id_generator.dart';
+import 'package:WeighTracker/models/weight_entry.dart';
+import 'package:WeighTracker/models/user_profile.dart';
+import 'package:WeighTracker/pages/profile_page.dart';
+import 'package:WeighTracker/pages/profile_selection.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -511,6 +511,12 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: Column(
         children: [
+          // si l'ecran est un telephone
+          if (MediaQuery.of(context).size.width < 600)
+            Container(
+              height: 32,
+              color: colorScheme.primaryContainer.withOpacity(0.6),
+            ),
           // Row avec nom de profil, icône et bouton pour définir un nouvel objectif de poid
           Container(
             color: colorScheme.primaryContainer.withOpacity(0.6),

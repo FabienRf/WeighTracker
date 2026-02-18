@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_weightrack/pages/home.dart';
-import 'package:flutter_weightrack/pages/profile_selection.dart';
-import 'package:flutter_weightrack/models/user_profile.dart';
+import 'package:WeighTracker/pages/home.dart';
+import 'package:WeighTracker/pages/profile_selection.dart';
+import 'package:WeighTracker/models/user_profile.dart';
 
 // Couleur principale de l'application (ton de marque)
 const Color kBrandColor = Color.fromARGB(255, 197, 40, 90);

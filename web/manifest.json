@@ -1,6 +1,6 @@
 {
-    "name": "flutter_weightrack",
-    "short_name": "flutter_weightrack",
+    "name": "WeighTracker",
+    "short_name": "WeighTracker",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
