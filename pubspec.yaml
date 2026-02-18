@@ -26,4 +26,4 @@ flutter_icons:
   android: true
   ios: true
   web: true
-  image_path: "web/assets/icons/ppApplicationpng.png"
+  image_path: "web/icons/ppApplicationpng.png"
