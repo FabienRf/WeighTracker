@@ -6,7 +6,7 @@ class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   Future<void> _logout(BuildContext context) async {
-    // Déconnecte / réinitialise le profil actif et retourne à la sélection.
+    // Clear active profile and return to selection screen.
     await UserProfile.clear();
 
     if (!context.mounted) return;
@@ -26,29 +26,29 @@ class ProfilePage extends StatelessWidget {
         final textTheme = Theme.of(context).textTheme;
         final colorScheme = Theme.of(context).colorScheme;
         return Scaffold(
-          appBar: AppBar(title: const Text('Profil')),
+          appBar: AppBar(title: const Text('Profile')),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Affiche les informations du profil actif (nom, taille, poids, objectif).
-                Text('Nom', style: textTheme.labelLarge),
+                // Show active profile details (name, height, weight, goal).
+                Text('Name', style: textTheme.labelLarge),
                 Text(profile?.name ?? '-', style: textTheme.titleMedium),
                 const SizedBox(height: 8),
-                Text('Taille', style: textTheme.labelLarge),
+                Text('Height', style: textTheme.labelLarge),
                 Text(
                   '${profile?.height ?? '-'} cm',
                   style: textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                Text('Poids', style: textTheme.labelLarge),
+                Text('Weight', style: textTheme.labelLarge),
                 Text(
                   '${profile?.weight ?? '-'} kg',
                   style: textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                Text('Objectif', style: textTheme.labelLarge),
+                Text('Goal', style: textTheme.labelLarge),
                 Text(
                   '${profile?.goalWeight ?? '-'} kg',
                   style: textTheme.titleMedium,
@@ -63,7 +63,7 @@ class ProfilePage extends StatelessWidget {
                       backgroundColor: colorScheme.error,
                       foregroundColor: colorScheme.onError,
                     ),
-                    child: const Text('Changer de profil'),
+                    child: const Text('Switch profile'),
                   ),
                 ),
               ],

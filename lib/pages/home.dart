@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:WeighTracker/services/id_generator.dart';
 import 'package:WeighTracker/models/weight_entry.dart';
 import 'package:WeighTracker/models/user_profile.dart';
-import 'package:WeighTracker/pages/profile_page.dart';
 import 'package:WeighTracker/pages/profile_selection.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -35,14 +34,12 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadProfile() async {
     _profile = await UserProfile.loadActive();
-    // Charge le profil actif depuis le stockage.
-    // Rôle: initialise `_profile`, recharge les entrées et ajoute
-    // une pesée initiale si aucune entrée n'existe.
+    // Load the active profile, reload entries, and add an initial weigh-in
+    // if none exist yet.
     if (!mounted) return;
     await _loadEntries();
     _updateCurrentWeight();
-    // If there are no entries yet and we have a profile, add an initial weight entry
-    // Si aucune pesée n'existe et qu'un profil est chargé, ajoute une pesée initiale
+    // If there are no entries yet and we have a profile, add an initial weigh-in
     if (_entries.isEmpty) {
       final id = await IdGenerator.getNextId(_profile?.id);
       _entries.add(
@@ -50,7 +47,7 @@ class _HomePageState extends State<HomePage> {
           id: id,
           date: DateTime.now(),
           weight: _profile!.weight,
-          note: 'Poids initial',
+          note: 'Initial weight',
         ),
       );
       await _saveEntries();
@@ -60,8 +57,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _updateCurrentWeight() {
-    // Met à jour `currentWeight` : prend la dernière entrée si disponible,
-    // sinon utilise le poids du profil (ou 0.0 si aucun profil).
+    // Update `currentWeight`: use the latest entry if available, otherwise the profile weight (or 0.0).
     if (_entries.isNotEmpty) {
       final latest = _entries.reduce((a, b) => a.date.isAfter(b.date) ? a : b);
       currentWeight = latest.weight;
@@ -71,7 +67,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadEntries() async {
-    // Charge les entrées de poids depuis `SharedPreferences` (JSON).
+    // Load weight entries from `SharedPreferences` (JSON).
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_storageKey);
     if (jsonString != null) {
@@ -89,7 +85,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _saveEntries() async {
-    // Sauvegarde les entrées de poids dans `SharedPreferences` au format JSON.
+    // Save weight entries into `SharedPreferences` as JSON.
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(_entries.map((e) => e.toJson()).toList());
     await prefs.setString(_storageKey, encoded);
@@ -103,19 +99,19 @@ class _HomePageState extends State<HomePage> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Définir un nouvel objectif de poids'),
+        title: const Text('Set a new weight goal'),
         content: TextField(
           controller: goalController,
           autofocus: true,
           keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
-            labelText: 'Objectif de poids (kg)',
+            labelText: 'Goal weight (kg)',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annuler'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -130,7 +126,7 @@ class _HomePageState extends State<HomePage> {
                 ScaffoldMessenger.of(this.context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                      'Poids invalide — entrez un nombre pour l\'objectif',
+                      'Invalid weight — enter a number for the goal',
                     ),
                   ),
                 );
@@ -146,7 +142,7 @@ class _HomePageState extends State<HomePage> {
               });
               Navigator.of(context).pop();
             },
-            child: const Text('Enregistrer'),
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -155,7 +151,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _addEntryDialog() async {
-    // Affiche une boîte de dialogue pour ajouter une pesée (poids, date, note).
+    // Show a dialog to add a weigh-in (weight, date, note).
     final weightController = TextEditingController();
     final noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
@@ -164,7 +160,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, dialogSetState) => AlertDialog(
-          title: const Text('Ajouter une pesée'),
+          title: const Text('Add a weigh-in'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -172,13 +168,13 @@ class _HomePageState extends State<HomePage> {
                 controller: weightController,
                 autofocus: true,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Poids (kg)'),
+                decoration: const InputDecoration(labelText: 'Weight (kg)'),
               ),
               const SizedBox(height: 4),
               TextField(
                 controller: noteController,
                 decoration: const InputDecoration(
-                  labelText: 'Note (facultatif)',
+                  labelText: 'Note (optional)',
                 ),
               ),
               const SizedBox(height: 8),
@@ -206,7 +202,7 @@ class _HomePageState extends State<HomePage> {
                         dialogSetState(() {});
                       }
                     },
-                    child: const Text('Choisir'),
+                    child: const Text('Choose'),
                   ),
                 ],
               ),
@@ -215,7 +211,7 @@ class _HomePageState extends State<HomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Annuler'),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -231,7 +227,7 @@ class _HomePageState extends State<HomePage> {
                 } catch (e) {
                   ScaffoldMessenger.of(this.context).showSnackBar(
                     const SnackBar(
-                      content: Text('Poids invalide — entrez un nombre'),
+                      content: Text('Invalid weight — enter a number'),
                     ),
                   );
                   return;
@@ -249,13 +245,13 @@ class _HomePageState extends State<HomePage> {
                   'Adding entry id=$id, beforeIds=${_entries.map((e) => e.id).toList()}',
                 );
 
-                // empeche l'ajout de plusieurs entrées pour la même date (en comparant uniquement la partie date, pas l'heure)
+                // Prevent multiple entries for the same day (ignore time portion)
                 if (_entries.any(
                   (e) => datesAreSameDay(e.date, selectedDate),
                 )) {
                   ScaffoldMessenger.of(this.context).showSnackBar(
                     const SnackBar(
-                      content: Text('Une entrée existe déjà pour cette date'),
+                      content: Text('An entry already exists for this date'),
                     ),
                   );
                   return;
@@ -265,7 +261,7 @@ class _HomePageState extends State<HomePage> {
                   ScaffoldMessenger.of(this.context).showSnackBar(
                     const SnackBar(
                       content: Text(
-                        'Vous ne pouvez pas ajouter une entrée pour une date future',
+                        'You cannot add an entry for a future date',
                       ),
                     ),
                   );
@@ -283,20 +279,19 @@ class _HomePageState extends State<HomePage> {
                 await _saveEntries();
                 Navigator.of(dialogContext).pop();
               },
-              child: const Text('Ajouter'),
+              child: const Text('Add'),
             ),
           ],
         ),
       ),
     );
-    // dispose controllers after the dialog is closed
-    // Libère les contrôleurs une fois la boîte de dialogue fermée.
+    // Dispose controllers after the dialog is closed.
     weightController.dispose();
     noteController.dispose();
   }
 
   Future<void> _removeEntry(int index) async {
-    // Supprime une entrée par index et met à jour le poids courant et le stockage.
+    // Remove an entry by index and update current weight and storage.
     setState(() {
       _entries.removeAt(index);
       _updateCurrentWeight();
@@ -304,20 +299,20 @@ class _HomePageState extends State<HomePage> {
     await _saveEntries();
   }
 
-  WeightEntry _getEntryById(int id) {
-    // Retourne l'entrée correspondant à `id`.
-    return _entries.firstWhere((e) => e.id == id);
-  }
+  // WeightEntry _getEntryById(int id) {
+  //   // Return the entry matching `id`.
+  //   return _entries.firstWhere((e) => e.id == id);
+  // }
 
   WeightEntry? _getLatestEntry() {
-    // Retourne la dernière entrée triée par date, ou `null` si aucune entrée.
+    // Return the latest entry by date, or `null` if none.
     if (_entries.isEmpty) return null;
     return _entries.reduce((a, b) => a.date.isAfter(b.date) ? a : b);
   }
 
   double _progressPercentage() {
-    // Calcule la progression vers l'objectif en pourcentage (0..100).
-    // Utilise la dernière pesée si disponible, sinon `currentWeight`.
+    // Compute progress toward the goal in percent (0..100).
+    // Use the latest weigh-in if available, otherwise `currentWeight`.
     if (_profile == null) return 0.0;
     final goal = _profile!.goalWeight;
     final start = _profile!.weight;
@@ -329,14 +324,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   bool datesAreSameDay(DateTime date1, DateTime date2) {
-    // Compare uniquement la partie date (ignore l'heure).
+    // Compare only the date portion (ignore time).
     return date1.year == date2.year &&
         date1.month == date2.month &&
         date1.day == date2.day;
   }
 
   Widget _buildWeightChart() {
-    // Construit le widget graphique (LineChart) affichant l'évolution du poids.
+    // Build the line chart widget showing weight evolution.
     try {
       final spots = <FlSpot>[];
 
@@ -346,8 +341,7 @@ class _HomePageState extends State<HomePage> {
       } else {
         final sorted = List<WeightEntry>.from(_entries)
           ..sort((a, b) => a.date.compareTo(b.date));
-        // Normalise les dates à la partie jour (minuit) pour calculer les
-        // différences en nombre de jours pleins.
+        // Normalize dates to midnight to compute whole-day differences.
         final rangeStart = DateTime.now().subtract(_dureeGraphique);
         final startDay = DateTime(
           rangeStart.year,
@@ -370,8 +364,8 @@ class _HomePageState extends State<HomePage> {
 
       if ((maxX - minX).abs() < 1e-9) maxX = minX + 1;
       if ((maxY - minY).abs() < 1e-9) maxY = minY + 1;
-      // Calcule un padding vertical proportionnel à l'amplitude des données
-      // (avec une valeur minimale) pour éviter que les points touchent les bords.
+      // Add vertical padding proportional to the data range (with a floor)
+      // to avoid points touching the chart edges.
       final yPadding = ((maxY - minY) * 0.15).abs();
       double intervalY = (maxY - minY) / 5;
 
@@ -400,7 +394,7 @@ class _HomePageState extends State<HomePage> {
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
-                  labelResolver: (_) => 'Objectif',
+                  labelResolver: (_) => 'Goal',
                 ),
               ),
             ],
@@ -448,7 +442,7 @@ class _HomePageState extends State<HomePage> {
       );
     } catch (e) {
       return const Center(
-        child: Text('Aucune donnée à afficher avec les paramètres actuels'),
+        child: Text('No data to display with the current settings'),
       );
     }
   }
@@ -460,7 +454,7 @@ class _HomePageState extends State<HomePage> {
     bool isLast = false,
     StateSetter? dialogSetState,
   }) {
-    // Crée un bouton radio personnalisé pour sélectionner la durée du graphique.
+    // Build a custom radio button for selecting the chart range.
     final colorScheme = Theme.of(context).colorScheme;
     final selected = _dureeGraphique == value;
     return Expanded(
@@ -511,13 +505,13 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: Column(
         children: [
-          // si l'ecran est un telephone
+          // Add top spacer on narrow screens (phones)
           if (MediaQuery.of(context).size.width < 600)
             Container(
               height: 32,
               color: colorScheme.primaryContainer.withOpacity(0.6),
             ),
-          // Row avec nom de profil, icône et bouton pour définir un nouvel objectif de poid
+          // Row with profile name, icon, and button to set a new goal
           Container(
             color: colorScheme.primaryContainer.withOpacity(0.6),
             child: Padding(
@@ -554,7 +548,6 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                     ),
-                    // Bouton qui ouvre une pop-up pour re-définir l'objectif du profil actuel (perte ou gain de poids)
                   ),
 
                   Container(
@@ -589,7 +582,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 const SizedBox(height: 22),
 
-                // Row affichant le dernier poids en grande taille
+                // Row showing the latest weight in large text
                 Row(
                   children: [
                     RichText(
@@ -609,9 +602,8 @@ class _HomePageState extends State<HomePage> {
                           TextSpan(
                             text: 'kg',
                             style: TextStyle(
-                              fontSize: 18, // Taille réduite pour "kg"
-                              fontWeight: FontWeight
-                                  .bold, // ou normal selon votre besoin
+                              fontSize: 18, // Smaller size for "kg"
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -621,7 +613,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 14),
 
-                // Row avec le poid restant vers l'objectif(perte ou gain) à gauche et à droite le pourcentage de progression
+                // Row with remaining weight to goal and progress percentage
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -631,9 +623,9 @@ class _HomePageState extends State<HomePage> {
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.black,
-                          ), // Style par défaut
+                          ), // Default text style
                           children: [
-                            TextSpan(text: 'Restant : '),
+                            TextSpan(text: 'Remaining: '),
                             TextSpan(
                               text:
                                   '${((_getLatestEntry() != null ? _getLatestEntry()!.weight : _profile!.weight) - _profile!.goalWeight).abs().toStringAsFixed(1)} kg',
@@ -644,14 +636,14 @@ class _HomePageState extends State<HomePage> {
                       ),
                     if (_profile != null)
                       Text(
-                        'Progression: ${_progressPercentage().toStringAsFixed(1)}%',
+                        'Progress: ${_progressPercentage().toStringAsFixed(1)}%',
                         style: const TextStyle(fontSize: 16),
                       ),
                   ],
                 ),
                 const SizedBox(height: 12),
 
-                // Row avec une barre de progression horizontale indiquant visuellement la progression vers l'objectif
+                // Row with a horizontal progress bar toward the goal
                 Row(
                   children: [
                     Expanded(
@@ -667,7 +659,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Row affichant l'objectif de poids et le dernier poids enregistré en petit en dessous du poids actuel
+                // Row showing goal weight and starting weight below the current weight
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -710,7 +702,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 32),
 
-                // Row qui apparait si l'objectif est atteint ou dépassé, avec un message de félicitations et une icône, ainsi qu'un bouton qui appele une pop-up pour definir un nouvel objectif
+                // Row appearing when the goal is reached, with a celebration message and button to set a new goal
                 if (_progressPercentage() >= 100)
                   Row(
                     children: [
@@ -721,7 +713,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Objectif atteint !',
+                        'Goal reached!',
                         style: textTheme.titleMedium?.copyWith(
                           color: Colors.orange,
                           fontWeight: FontWeight.bold,
@@ -734,7 +726,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         onPressed: () => _updateProfileGoalDialog(),
                         child: Text(
-                          'Nouveaux',
+                          'New goal',
                           style: textTheme.titleMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -757,7 +749,7 @@ class _HomePageState extends State<HomePage> {
 
                 const SizedBox(height: 12),
 
-                // Row graphique linéaire montrant l'évolution du poids au fil du temps, avec des points pour chaque pesée enregistrée
+                // Line chart showing weight changes with each recorded weigh-in
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -793,7 +785,7 @@ class _HomePageState extends State<HomePage> {
                                 ),
                                 child: Column(
                                   children: [
-                                    // graphique (taille fixe pour éviter contraintes non bornées)
+                                    // Chart (fixed height to avoid unbounded constraints)
                                     SizedBox(
                                       height: 240,
                                       child: Column(
@@ -854,7 +846,7 @@ class _HomePageState extends State<HomePage> {
                                                                 dialogSetState,
                                                               ) => AlertDialog(
                                                                 title: const Text(
-                                                                  'Durée du graphique :',
+                                                                  'Chart range:',
                                                                   style: TextStyle(
                                                                     fontSize:
                                                                         12,
@@ -876,7 +868,7 @@ class _HomePageState extends State<HomePage> {
                                                                               .min,
                                                                       children: [
                                                                         _customRadio(
-                                                                          "7 J",
+                                                                          "7 D",
                                                                           const Duration(
                                                                             days:
                                                                                 7,
@@ -887,7 +879,7 @@ class _HomePageState extends State<HomePage> {
                                                                               dialogSetState,
                                                                         ),
                                                                         _customRadio(
-                                                                          "30 J",
+                                                                          "30 D",
                                                                           const Duration(
                                                                             days:
                                                                                 30,
@@ -905,7 +897,7 @@ class _HomePageState extends State<HomePage> {
                                                                               dialogSetState,
                                                                         ),
                                                                         _customRadio(
-                                                                          "1 A",
+                                                                          "1 Y",
                                                                           const Duration(
                                                                             days:
                                                                                 365,
@@ -914,7 +906,7 @@ class _HomePageState extends State<HomePage> {
                                                                               dialogSetState,
                                                                         ),
                                                                         _customRadio(
-                                                                          "Tous",
+                                                                          "All",
                                                                           const Duration(
                                                                             days:
                                                                                 36500,
@@ -935,7 +927,7 @@ class _HomePageState extends State<HomePage> {
                                                                           context,
                                                                         ).pop(),
                                                                     child: const Text(
-                                                                      'Fermer',
+                                                                      'Close',
                                                                     ),
                                                                   ),
                                                                 ],
@@ -987,7 +979,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Expanded(
                   child: _entries.isEmpty
-                      ? const Center(child: Text('Aucune pesée enregistrée'))
+                      ? const Center(child: Text('No weigh-ins recorded'))
                       : ListView.builder(
                           itemCount: _entries.length,
                           itemBuilder: (context, index) {
@@ -1015,7 +1007,7 @@ class _HomePageState extends State<HomePage> {
                               },
                               child: ListTile(
                                 title: Text(
-                                  '${e.weight.toStringAsFixed(3)} kg, le ${DateFormat('dd/MM/yyyy').format(e.date)}',
+                                  '${e.weight.toStringAsFixed(3)} kg on ${DateFormat('dd/MM/yyyy').format(e.date)}',
                                 ),
                               ),
                             );

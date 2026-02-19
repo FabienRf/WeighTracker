@@ -11,8 +11,8 @@ class ProfilCreationPage extends StatefulWidget {
 }
 
 class _ProfilCreationPageState extends State<ProfilCreationPage> {
-  // Page et formulaire pour créer ou modifier un profil utilisateur.
-  // Rôle: collecte nom, taille, poids et objectif, valide et sauve.
+  // Page and form to create or edit a user profile.
+  // Collects name, height, weight, and goal; validates and saves.
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _heightController = TextEditingController();
@@ -24,7 +24,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
   @override
   void initState() {
     super.initState();
-    // Si édition, pré-remplit les champs avec les valeurs existantes.
+    // If editing, prefill fields with existing values.
     if (_isEditing) {
       final p = widget.existingProfile!;
       _nameController.text = p.name;
@@ -35,8 +35,8 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
   }
 
   String _cleanNumber(String raw) {
-    // Nettoie une chaîne numérique (',' -> '.', enlève caractères non numériques).
-    return raw.replaceAll(',', '.').replaceAll(RegExp(r'[^0-9.\-]'), '');
+    // Clean numeric input ("," -> ".", remove non-numeric characters).
+    return raw.replaceAll(',', '.').replaceAll(RegExp(r'[^0-9.-]'), '');
   }
 
   double? _parseDouble(String raw) {
@@ -60,7 +60,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
   }
 
   Future<void> _saveProfile() async {
-    // Valide et enregistre le profil (création ou mise à jour).
+    // Validate and save the profile (create or update).
     final name = _nameController.text.trim();
     final height = _parseInt(_heightController.text);
     final weight = _parseDouble(_weightController.text);
@@ -69,7 +69,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
     if (name.isEmpty || height == null || weight == null || goal == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Veuillez remplir tous les champs correctement'),
+          content: Text('Please fill in all fields correctly'),
         ),
       );
       return;
@@ -95,7 +95,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Modifier le profil' : 'Créer un profil'),
+        title: Text(_isEditing ? 'Edit profile' : 'Create profile'),
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -104,14 +104,14 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
           child: ListView(
             children:
                 [
-                  // En-tête et description courte de la page.
+                  // Header and short description for the page.
                   Text(
-                    _isEditing ? 'Informations du profil' : 'Nouveau profil',
+                    _isEditing ? 'Profile information' : 'New profile',
                     style: textTheme.titleLarge,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Vous pourrez ajouter des pesées ensuite.',
+                    'You can add weigh-ins later.',
                     style: textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -121,7 +121,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
                     controller: _nameController,
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
-                      labelText: 'Nom',
+                      labelText: 'Name',
                       prefixIcon: Icon(Icons.person_outline),
                     ),
                   ),
@@ -131,7 +131,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
-                      labelText: 'Taille en cm (ex: 175)',
+                      labelText: 'Height in cm (e.g. 175)',
                       prefixIcon: Icon(Icons.height),
                     ),
                   ),
@@ -147,7 +147,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
                           ),
                           textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
-                            labelText: 'Poids actuel (kg)',
+                            labelText: 'Current weight (kg)',
                             prefixIcon: Icon(Icons.monitor_weight_outlined),
                           ),
                         ),
@@ -159,7 +159,7 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
                           ),
                           textInputAction: TextInputAction.done,
                           decoration: const InputDecoration(
-                            labelText: 'Objectif de poids (kg)',
+                            labelText: 'Goal weight (kg)',
                             prefixIcon: Icon(Icons.flag_outlined),
                           ),
                         ),
@@ -172,8 +172,8 @@ class _ProfilCreationPageState extends State<ProfilCreationPage> {
                       onPressed: _saveProfile,
                       child: Text(
                         _isEditing
-                            ? 'Enregistrer les modifications'
-                            : 'Créer le profil',
+                            ? 'Save changes'
+                            : 'Create profile',
                       ),
                     ),
                   ),

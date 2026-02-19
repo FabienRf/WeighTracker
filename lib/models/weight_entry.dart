@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 
-// Représente une entrée de pesée (id, date, poids, note).
-// Rôle: sérialisation vers/depuis JSON pour le stockage local.
+// Represents a weigh-in entry (id, date, weight, note).
+// Role: serialize to/from JSON for local storage.
 class WeightEntry {
   final int id;
   final DateTime date;
