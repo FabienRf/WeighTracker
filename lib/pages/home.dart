@@ -21,7 +21,7 @@ class _HomePageState extends State<HomePage> {
 
   List<WeightEntry> _entries = [];
   late double currentWeight;
-  late Duration _dureeGraphique = const Duration(days: 7);
+  late Duration _dureeGraphique = const Duration(days: 180);
   UserProfile? _profile;
 
   @override
@@ -342,7 +342,7 @@ class _HomePageState extends State<HomePage> {
         final sorted = List<WeightEntry>.from(_entries)
           ..sort((a, b) => a.date.compareTo(b.date));
         // Normalize dates to midnight to compute whole-day differences.
-        final rangeStart = DateTime.now().subtract(_dureeGraphique);
+        final rangeStart = DateTime.now().subtract();
         final startDay = DateTime(
           rangeStart.year,
           rangeStart.month,
